@@ -1,0 +1,62 @@
+---
+title: "Practical Machine Learning"
+author: "Abanoub Amgad"
+date: "December 26, 2015"
+output: html_document
+---
+In This Project, i'll try to build a model for the PML data to predict activity quality from activity monitors  
+
+###Reading & Cleaning Data
+
+```{r}
+library(caret)
+library(randomForest)
+set.seed(12345)
+pml <- read.csv("c:/Users/abano/Downloads/pml-training.csv",stringsAsFactors = F)
+```
+after reading the data and running str(pml), i found out that some variables are simply not available, some are empty and some won't be really useful in prediction (like the names)  
+so, to create a better model i had to remove them.  
+```{r}
+inTrain <- createDataPartition(as.factor(pml$classe),p=0.75,list=FALSE)
+training <- pml[inTrain,]
+validation <- pml[-inTrain,] #creating a validation set
+cleanTraining <- training[,colSums(is.na(training))==0] #removing NAs
+cleanTraining$classe <- as.factor(cleanTraining$classe) 
+numericCols <- numeric()
+for(i in 1:ncol(cleanTraining)){ #locating the empty variables
+  if(class(cleanTraining[,i]) != "character"){
+    numericCols <- c(numericCols,i)
+  }
+}
+cleanTraining <- cleanTraining[,numericCols] #removing empty variables
+cleanTraining <- cleanTraining[,-1:-4] #removing name, time as they won't affect classification
+```
+
+we are now ready to build our model, i'll choose random forests as it's a very good classification technique and it suits our case
+
+###Using Random Forests
+
+```{r}
+fit <- randomForest(data=cleanTraining,classe~.,ntree = 50,proximity=T,importance=T)
+```
+
+after we got the model, we should calculate the accuracy & in sample error
+
+###Comparing Errors
+
+```{r}
+inpred <- predict(fit,training)
+confusionMatrix(table(inpred,as.factor(training$classe)))
+```
+
+an accuracy of 1 !! that was expected as this is the training data, on the contrary .. the accuracy of the validation set prediction is expected to be lower .. which means HIGHER error 
+
+```{r}
+outpred <- predict(fit,validation)
+confusionMatrix(table(outpred,as.factor(validation$classe)))
+```
+as we expected, the accuracy of the validation set prediction is lower (higher error) .. but actually it's not that bad .. we still have a pretty good prediction accuracy that will get us the 20 points of the programming assignment! 
+```{r}
+test <- read.csv("c:/Users/abano/Downloads/pml-testing.csv",stringsAsFactors = F)
+predict(fit,test)
+```
